@@ -144,7 +144,7 @@
 
         <!-- Sección para Agregar Nodos -->
         <h2>Definir Nodos</h2>
-        <div class="form-inline">
+        <div class="form-inline"></div>
             <input type="text" id="newNodeName" placeholder="Nombre del nodo">
             <button class="btn" onclick="addNode()">Agregar Nodo</button>
         </div>
@@ -171,8 +171,13 @@
                 <option value="">-- Nodo destino --</option>
             </select>
             <input type="number" id="newEdgeCost" placeholder="Costo" min="0">
+            <select id="edgeType">
+                <option value="undirected">No dirigido</option>
+                <option value="directed">Dirigido</option>
+            </select>
             <button class="btn" onclick="addEdge()">Agregar Arco</button>
         </div>
+
         <table id="edgesTable">
             <tr>
                 <th>Origen</th>
@@ -192,14 +197,33 @@
     <script>
         let nodes = [];
         let edges = [];
+        const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"; // Alfabeto para los nombres automáticos
+        const prefix = "R"; // Prefijo para los nombres automáticos
+        
+        // Función para generar un nombre de nodo automáticamente
+        function generateNodeName() {
+            for (let i = 0; i < alphabet.length; i++) {
+                const nodeName = `${prefix}${alphabet[i]}`;
+                // Si el nombre no está en la lista de nodos, lo retornamos
+                if (!nodes.includes(nodeName)) {
+                    return nodeName;
+                }
+            }
+            return null;
+        }
 
         // Función para agregar un nodo
         function addNode() {
             const nodeInput = document.getElementById('newNodeName');
-            const nodeName = nodeInput.value.trim();
+            let nodeName = nodeInput.value.trim();
 
+            // Si el campo está vacío, generar un nombre automáticamente
             if (nodeName === "") {
-                alert("El nombre del nodo no puede estar vacío.");
+                nodeName = generateNodeName();
+            }
+
+            if (!nodeName) {
+                alert("No quedan más nombres automáticos disponibles.");
                 return;
             }
 
@@ -212,8 +236,6 @@
             updateNodesTable();
             updateStartNodeOptions();
             updateEdgeSelectOptions();
-
-            // Limpiar el campo de entrada
             nodeInput.value = "";
         }
 
@@ -298,10 +320,12 @@
             const originInput = document.getElementById('newEdgeOrigin');
             const destInput = document.getElementById('newEdgeDest');
             const costInput = document.getElementById('newEdgeCost');
+            const edgeTypeInput = document.getElementById('edgeType'); // Select para elegir dirigido o no dirigido
 
             const origin = originInput.value.trim();
             const dest = destInput.value.trim();
             const cost = parseFloat(costInput.value);
+            const edgeType = edgeTypeInput.value; // Obtener si el arco es dirigido o no dirigido
 
             if (origin === "" || dest === "") {
                 alert("Los campos de origen y destino no pueden estar vacíos.");
@@ -323,10 +347,9 @@
                 return;
             }
 
-            // Verificar si el arco ya existe (considerando grafo no dirigido)
+            // Verificar si el arco ya existe
             const exists = edges.some(edge =>
-                (edge.origin === origin && edge.dest === dest) ||
-                (edge.origin === dest && edge.dest === origin)
+                (edge.origin === origin && edge.dest === dest)
             );
 
             if (exists) {
@@ -334,9 +357,14 @@
                 return;
             }
 
-            // Agregar arco en ambas direcciones para grafo no dirigido
+            // Agregar arco según el tipo (dirigido o no dirigido)
             edges.push({ origin, dest, cost });
-            edges.push({ origin: dest, dest: origin, cost });
+
+            if (edgeType === 'undirected') {
+                // Agregar en ambas direcciones para un grafo no dirigido
+                edges.push({ origin: dest, dest: origin, cost });
+            }
+
             updateEdgesTable();
 
             // Limpiar los campos de entrada
@@ -345,9 +373,16 @@
             costInput.value = "";
         }
 
+      
         // Función para actualizar la tabla de arcos
         function updateEdgesTable() {
             const table = document.getElementById('edgesTable');
+            
+            if (!table) {
+                console.error("Tabla de arcos no encontrada en el DOM.");
+                return;
+            }
+
             // Limpiar filas excepto la cabecera
             table.innerHTML = `
             <tr>
@@ -356,7 +391,8 @@
                 <th>Costo</th>
                 <th>Acción</th>
             </tr>
-        `;
+            `;
+            
             // Mostrar cada arco solo una vez (evitar duplicados por grafo no dirigido)
             const displayed = new Set();
             edges.forEach((edge, index) => {
@@ -376,6 +412,7 @@
                 }
             });
         }
+
 
         // Función para eliminar un arco
         function deleteEdge(origin, dest) {

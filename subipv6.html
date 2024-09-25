@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Generador de Subredes IPv6</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            text-align: center;
+        }
+        .container {
+            background-color: #fff;
+            padding: 20px 30px 30px 30px;
+            border-radius: 8px;
+            max-width: 800px;
+            margin: auto;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        label {
+            display: block;
+            margin-top: 15px;
+            font-weight: bold;
+        }
+        input, select, button {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            margin-top: 20px;
+            background-color: #007BFF;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .result {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #e9ecef;
+            border-radius: 5px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Generador de Subredes IPv6</h1>
+        <form id="ipv6Form">
+            <label for="ipv6Address">Dirección IPv6:</label>
+            <input type="text" id="ipv6Address" placeholder="Ejemplo: 2001:db8:acad::" required>
+
+            <label for="prefixLength">Selecciona el Prefijo:</label>
+            <select id="prefixLength" required>
+                <option value="" disabled selected>Selecciona un prefijo</option>
+                <option value="32">/32</option>
+                <option value="40">/40</option>
+                <option value="48">/48</option>
+                <option value="56">/56</option>
+                <option value="64">/64</option>
+            </select>
+
+            <label for="numSubnets">Número de Subredes:</label>
+            <input type="number" id="numSubnets" min="1" max="65535" placeholder="Ejemplo: 10" required>
+
+            <label for="devicesPerSubnet">Número de Dispositivos por Subred:</label>
+            <input type="number" id="devicesPerSubnet" min="1" max="65535" placeholder="Ejemplo: 50" required>
+
+            <button type="submit">Generar Subredes</button>
+
+            <div class="error" id="errorMsg"></div>
+        </form>
+
+        <div class="result" id="result" style="display:none;">
+            <h2>Resultados:</h2>
+            <pre id="output"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Función para expandir una dirección IPv6 completa
+        function expandIPv6(address) {
+            let fullAddress = '';
+            const parts = address.split('::');
+            if (parts.length > 2) {
+                return null; // Dirección IPv6 inválida
+            }
+            const left = parts[0] ? parts[0].split(':') : [];
+            const right = parts[1] ? parts[1].split(':') : [];
+            const missing = 8 - (left.length + right.length);
+            if (missing < 0) {
+                return null; // Dirección IPv6 inválida
+            }
+            fullAddress = left.concat(Array(missing).fill('0')).concat(right).join(':');
+            return fullAddress;
+        }
+
+        // Función para convertir una dirección IPv6 a BigInt
+        function ipv6ToBigInt(address) {
+            const expanded = expandIPv6(address);
+            if (!expanded) return null;
+            const parts = expanded.split(':');
+            let bigint = BigInt(0);
+            for (let part of parts) {
+                bigint = (bigint << BigInt(16)) + BigInt(parseInt(part, 16));
+            }
+            return bigint;
+        }
+
+        // Función para convertir BigInt a dirección IPv6
+        function bigIntToIPv6(bigint) {
+            let hex = bigint.toString(16).padStart(32, '0');
+            const hextets = [];
+            for (let i = 0; i < 32; i += 4) {
+                hextets.push(hex.substring(i, i + 4));
+            }
+            // Compactar la dirección IPv6 (opcional, aquí se mantiene completa)
+            return hextets.join(':');
+        }
+
+        // Función para validar una dirección IPv6 sin prefijo
+        function validateIPv6(address) {
+            const regex = /^([0-9a-fA-F]{1,4}:){1,7}[0-9a-fA-F]{1,4}$/;
+            // También permitir abreviaciones con ::
+            const regexCompressed = /^(([0-9A-Fa-f]{1,4}:){1,7}:|([0-9A-Fa-f]{1,4}:){1,6}:[0-9A-Fa-f]{1,4}|([0-9A-Fa-f]{1,4}:){1,5}(:[0-9A-Fa-f]{1,4}){1,2}|([0-9A-Fa-f]{1,4}:){1,4}(:[0-9A-Fa-f]{1,4}){1,3}|([0-9A-Fa-f]{1,4}:){1,3}(:[0-9A-Fa-f]{1,4}){1,4}|([0-9A-Fa-f]{1,4}:){1,2}(:[0-9A-Fa-f]{1,4}){1,5}|[0-9A-Fa-f]{1,4}:((:[0-9A-Fa-f]{1,4}){1,6}))$/;
+            return regex.test(address) || regexCompressed.test(address);
+        }
+
+        document.getElementById('ipv6Form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            document.getElementById('errorMsg').textContent = '';
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('output').textContent = '';
+
+            const ipv6Input = document.getElementById('ipv6Address').value.trim();
+            const selectedPrefixLength = parseInt(document.getElementById('prefixLength').value);
+            const numSubnets = parseInt(document.getElementById('numSubnets').value);
+            const devicesPerSubnet = parseInt(document.getElementById('devicesPerSubnet').value);
+
+            // Validar entrada IPv6
+            if (!validateIPv6(ipv6Input)) {
+                document.getElementById('errorMsg').textContent = 'Formato de IPv6 inválido.';
+                return;
+            }
+
+            // Convertir dirección base a BigInt
+            const baseBigInt = ipv6ToBigInt(ipv6Input);
+            if (baseBigInt === null) {
+                document.getElementById('errorMsg').textContent = 'Error al procesar la dirección IPv6.';
+                return;
+            }
+
+            // Calcular los bits necesarios para subredes
+            let n = 0;
+            while ((2 ** n) < numSubnets) {
+                n++;
+            }
+
+            const subnetPrefixLength = selectedPrefixLength + n;
+
+            if (subnetPrefixLength > 128) {
+                document.getElementById('errorMsg').textContent = 'El número de subredes excede el espacio disponible con el prefijo seleccionado.';
+                return;
+            }
+
+            const maxSubnets = Math.pow(2, n);
+            if (numSubnets > maxSubnets) {
+                document.getElementById('errorMsg').textContent = `Número de subredes excede el límite para el prefijo seleccionado. Máximo: ${maxSubnets}`;
+                return;
+            }
+
+            // Calcular los bits para los hosts
+            const hostBits = 128 - subnetPrefixLength;
+            if (hostBits < 1) {
+                document.getElementById('errorMsg').textContent = 'Prefijo demasiado largo para asignar dispositivos.';
+                return;
+            }
+
+            const maxDevices = Math.pow(2, hostBits) - 2; // Opcional: Reservar dos para dirección de red y broadcast
+            if (devicesPerSubnet > maxDevices) {
+                document.getElementById('errorMsg').textContent = `Número de dispositivos excede el límite para el prefijo seleccionado. Máximo: ${maxDevices}`;
+                return;
+            }
+
+            // Generar subredes
+            let outputText = `Prefijo Base: ${ipv6Input}/${selectedPrefixLength}\n`;
+            outputText += `Prefijo de Subred: /${subnetPrefixLength}\n\n`;
+
+            for (let i = 0; i < numSubnets; i++) {
+                const subnetBigInt = baseBigInt + BigInt(i) * (BigInt(1) << BigInt(hostBits));
+                const subnetAddress = bigIntToIPv6(subnetBigInt);
+                outputText += `Subred ${i + 1}: ${subnetAddress}/${subnetPrefixLength}\n`;
+
+                // Generar dispositivos
+                for (let j = 1; j <= devicesPerSubnet; j++) {
+                    const deviceBigInt = subnetBigInt + BigInt(j);
+                    const deviceAddress = bigIntToIPv6(deviceBigInt);
+                    outputText += `\tDispositivo ${j}: ${deviceAddress}/${subnetPrefixLength}\n`;
+                }
+                outputText += '\n';
+            }
+
+            document.getElementById('output').textContent = outputText;
+            document.getElementById('result').style.display = 'block';
+        });
+    </script>
+</body>
+</html>
