@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simplificador y Expansor de IPv6</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+        }
+
+        .container {
+            text-align: center;
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        input {
+            padding: 10px;
+            width: 300px;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            margin: 5px;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        #resultado {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+            word-break: break-all;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Simplificador y Expansor de IPv6</h1>
+        <p>Introduce una dirección IPv6 para simplificar o expandir:</p>
+        <input type="text" id="ipv6-input" placeholder="Introduce una dirección IPv6">
+        <div>
+            <button onclick="simplificarIPv6()">Simplificar</button>
+            <button onclick="expandirIPv6()">Expandir</button>
+        </div>
+        <p id="resultado"></p>
+    </div>
+
+    <script>
+        function simplificarIPv6() {
+            let ipv6 = document.getElementById("ipv6-input").value.trim();
+
+            // Verificar si es una dirección IPv6 válida completa
+            const ipv6CompletaRegex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
+            if (!ipv6CompletaRegex.test(ipv6)) {
+                document.getElementById("resultado").innerText = "Por favor, introduce una dirección IPv6 completa válida (8 bloques).";
+                return;
+            }
+
+            // Dividir la dirección en bloques
+            let bloques = ipv6.split(":");
+
+            // Eliminar ceros a la izquierda en cada bloque
+            bloques = bloques.map(bloque => bloque.replace(/^0+/, '') || '0');
+
+            // Encontrar la secuencia más larga de ceros
+            let maxZeros = 0;
+            let currentZeros = 0;
+            let startIndex = -1;
+            let tempStart = -1;
+
+            for (let i = 0; i < bloques.length; i++) {
+                if (bloques[i] === '0') {
+                    if (currentZeros === 0) {
+                        tempStart = i;
+                    }
+                    currentZeros++;
+                    if (currentZeros > maxZeros) {
+                        maxZeros = currentZeros;
+                        startIndex = tempStart;
+                    }
+                } else {
+                    currentZeros = 0;
+                }
+            }
+
+            // Si hay una secuencia de dos o más ceros, reemplazarla con "::"
+            if (maxZeros >= 2) {
+                bloques.splice(startIndex, maxZeros, '');
+                // Asegurarse de que no haya más de dos ":" consecutivos
+                ipv6 = bloques.join(":").replace(/:{3,}/, '::');
+            } else {
+                ipv6 = bloques.join(":");
+            }
+
+            document.getElementById("resultado").innerText = "IPv6 Simplificada: " + ipv6;
+        }
+
+        function expandirIPv6() {
+            let ipv6 = document.getElementById("ipv6-input").value.trim();
+
+            // Verificar si es una dirección IPv6 válida o abreviada con "::"
+            const ipv6AbreviadoRegex = /^([0-9a-fA-F]{1,4}:){0,7}(:([0-9a-fA-F]{1,4})){0,7}$/;
+            if (!ipv6AbreviadoRegex.test(ipv6)) {
+                document.getElementById("resultado").innerText = "Por favor, introduce una dirección IPv6 válida.";
+                return;
+            }
+
+            // Contar el número de bloques
+            let bloques = ipv6.split(":");
+            let numBloques = bloques.length;
+
+            // Si hay "::", calcular cuántos bloques de ceros faltan
+            if (ipv6.includes("::")) {
+                let partes = ipv6.split("::");
+                let bloquesIzquierda = partes[0] ? partes[0].split(":") : [];
+                let bloquesDerecha = partes[1] ? partes[1].split(":") : [];
+                let numCeros = 8 - (bloquesIzquierda.length + bloquesDerecha.length);
+
+                let ceros = Array(numCeros).fill("0000");
+                bloques = [...bloquesIzquierda, ...ceros, ...bloquesDerecha];
+            }
+
+            // Asegurarse de que ahora hay exactamente 8 bloques
+            if (bloques.length !== 8) {
+                document.getElementById("resultado").innerText = "La dirección IPv6 no es válida después de expandir.";
+                return;
+            }
+
+            // Completar ceros a la izquierda en cada bloque
+            let expandidos = bloques.map(bloque => bloque.padStart(4, '0')).join(":");
+
+            document.getElementById("resultado").innerText = "IPv6 Expandida: " + expandidos;
+        }
+    </script>
+</body>
+</html>

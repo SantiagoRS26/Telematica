@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Algoritmo de Dijkstra</title>
+    <style>
+        /* Estilos básicos y tipografía */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f0f4f7;
+            color: #333;
+        }
+
+        h1, h2 {
+            text-align: center;
+            color: #0044cc;
+        }
+
+        /* Container general */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Estilo para tablas */
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+            background-color: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        th, td {
+            border: 1px solid #dddddd;
+            text-align: center;
+            padding: 10px;
+        }
+
+        th {
+            background-color: #0044cc;
+            color: white;
+        }
+
+        td {
+            background-color: #f9f9f9;
+        }
+
+        /* Botones estilizados */
+        .btn {
+            padding: 10px 20px;
+            margin: 5px;
+            background-color: #0044cc;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .btn:hover {
+            background-color: #003399;
+        }
+
+        /* Inputs y selects estilizados */
+        input[type="number"], input[type="text"], select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+
+        /* Responsividad para formularios en línea */
+        .form-inline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .form-inline input, .form-inline select, .form-inline button {
+            flex: 1;
+            min-width: 150px;
+        }
+
+        /* Output con estilo */
+        #output {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        /* Clase para candidatos descartados */
+        .descartado {
+            color: red;
+        }
+
+        /* Media Queries para hacer la página responsive */
+        @media (max-width: 768px) {
+            h1, h2 {
+                font-size: 1.5em;
+            }
+
+            .container {
+                padding: 10px;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            table, th, td {
+                font-size: 0.9em;
+            }
+
+            .form-inline {
+                flex-direction: column;
+                gap: 5px;
+            }
+
+            input, select {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h1>Algoritmo de Dijkstra</h1>
+
+        <!-- Sección para Agregar Nodos -->
+        <h2>Definir Nodos</h2>
+        <div class="form-inline">
+            <input type="text" id="newNodeName" placeholder="Nombre del nodo">
+            <button class="btn" onclick="addNode()">Agregar Nodo</button>
+        </div>
+        <table id="nodesTable">
+            <tr>
+                <th>Nodo</th>
+                <th>Acción</th>
+            </tr>
+        </table>
+
+        <!-- Sección para Seleccionar Nodo Inicial -->
+        <h2>Seleccionar Nodo Inicial</h2>
+        <select id="startNodeSelect">
+            <option value="">-- Selecciona el nodo inicial --</option>
+        </select>
+
+        <!-- Sección para Agregar Arcos -->
+        <h2>Definir Arcos</h2>
+        <div class="form-inline">
+            <select id="newEdgeOrigin">
+                <option value="">-- Nodo origen --</option>
+            </select>
+            <select id="newEdgeDest">
+                <option value="">-- Nodo destino --</option>
+            </select>
+            <input type="number" id="newEdgeCost" placeholder="Costo" min="0">
+            <button class="btn" onclick="addEdge()">Agregar Arco</button>
+        </div>
+        <table id="edgesTable">
+            <tr>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th>Costo</th>
+                <th>Acción</th>
+            </tr>
+        </table>
+
+        <br>
+        <button class="btn" onclick="runDijkstra()">Ejecutar Dijkstra</button>
+
+        <h2>Resultado</h2>
+        <div id="output"></div>
+    </div>
+
+    <script>
+        let nodes = [];
+        let edges = [];
+
+        // Función para agregar un nodo
+        function addNode() {
+            const nodeInput = document.getElementById('newNodeName');
+            const nodeName = nodeInput.value.trim();
+
+            if (nodeName === "") {
+                alert("El nombre del nodo no puede estar vacío.");
+                return;
+            }
+
+            if (nodes.includes(nodeName)) {
+                alert("Este nodo ya ha sido agregado.");
+                return;
+            }
+
+            nodes.push(nodeName);
+            updateNodesTable();
+            updateStartNodeOptions();
+            updateEdgeSelectOptions();
+
+            // Limpiar el campo de entrada
+            nodeInput.value = "";
+        }
+
+        // Función para actualizar la tabla de nodos
+        function updateNodesTable() {
+            const table = document.getElementById('nodesTable');
+            // Limpiar filas excepto la cabecera
+            table.innerHTML = `
+            <tr>
+                <th>Nodo</th>
+                <th>Acción</th>
+            </tr>
+        `;
+            nodes.forEach((node, index) => {
+                const row = table.insertRow();
+                const cell1 = row.insertCell(0);
+                const cell2 = row.insertCell(1);
+
+                cell1.textContent = node;
+                cell2.innerHTML = `<button onclick="deleteNode(${index})">Eliminar</button>`;
+            });
+        }
+
+        // Función para eliminar un nodo
+        function deleteNode(index) {
+            const node = nodes[index];
+            // Eliminar el nodo de la lista de nodos
+            nodes.splice(index, 1);
+            // Eliminar todos los arcos que involucren este nodo
+            edges = edges.filter(edge => edge.origin !== node && edge.dest !== node);
+            updateNodesTable();
+            updateEdgesTable();
+            updateStartNodeOptions();
+            updateEdgeSelectOptions();
+        }
+
+        // Función para actualizar las opciones del nodo inicial
+        function updateStartNodeOptions() {
+            const select = document.getElementById('startNodeSelect');
+            // Guardar la selección actual
+            const currentSelection = select.value;
+            // Limpiar las opciones
+            select.innerHTML = `<option value="">-- Selecciona el nodo inicial --</option>`;
+            // Agregar nodos como opciones
+            nodes.forEach(node => {
+                const option = document.createElement('option');
+                option.value = node;
+                option.text = node;
+                select.appendChild(option);
+            });
+            // Restaurar la selección si aún existe
+            if (nodes.includes(currentSelection)) {
+                select.value = currentSelection;
+            }
+        }
+
+        // Función para actualizar las opciones en los selects de arcos
+        function updateEdgeSelectOptions() {
+            const originSelect = document.getElementById('newEdgeOrigin');
+            const destSelect = document.getElementById('newEdgeDest');
+
+            // Limpiar las opciones actuales
+            originSelect.innerHTML = `<option value="">-- Nodo origen --</option>`;
+            destSelect.innerHTML = `<option value="">-- Nodo destino --</option>`;
+
+            // Agregar los nodos disponibles como opciones
+            nodes.forEach(node => {
+                const originOption = document.createElement('option');
+                originOption.value = node;
+                originOption.text = node;
+                originSelect.appendChild(originOption);
+
+                const destOption = document.createElement('option');
+                destOption.value = node;
+                destOption.text = node;
+                destSelect.appendChild(destOption);
+            });
+        }
+
+        // Función para agregar un arco
+        function addEdge() {
+            const originInput = document.getElementById('newEdgeOrigin');
+            const destInput = document.getElementById('newEdgeDest');
+            const costInput = document.getElementById('newEdgeCost');
+
+            const origin = originInput.value.trim();
+            const dest = destInput.value.trim();
+            const cost = parseFloat(costInput.value);
+
+            if (origin === "" || dest === "") {
+                alert("Los campos de origen y destino no pueden estar vacíos.");
+                return;
+            }
+
+            if (origin === dest) {
+                alert("El origen y el destino no pueden ser el mismo.");
+                return;
+            }
+
+            if (!nodes.includes(origin) || !nodes.includes(dest)) {
+                alert("Ambos nodos deben estar definidos en la tabla de nodos.");
+                return;
+            }
+
+            if (isNaN(cost) || cost < 0) {
+                alert("El costo debe ser un número no negativo.");
+                return;
+            }
+
+            // Verificar si el arco ya existe (considerando grafo no dirigido)
+            const exists = edges.some(edge =>
+                (edge.origin === origin && edge.dest === dest) ||
+                (edge.origin === dest && edge.dest === origin)
+            );
+
+            if (exists) {
+                alert("Este arco ya ha sido agregado.");
+                return;
+            }
+
+            // Agregar arco en ambas direcciones para grafo no dirigido
+            edges.push({ origin, dest, cost });
+            edges.push({ origin: dest, dest: origin, cost });
+            updateEdgesTable();
+
+            // Limpiar los campos de entrada
+            originInput.value = "";
+            destInput.value = "";
+            costInput.value = "";
+        }
+
+        // Función para actualizar la tabla de arcos
+        function updateEdgesTable() {
+            const table = document.getElementById('edgesTable');
+            // Limpiar filas excepto la cabecera
+            table.innerHTML = `
+            <tr>
+                <th>Origen</th>
+                <th>Destino</th>
+                <th>Costo</th>
+                <th>Acción</th>
+            </tr>
+        `;
+            // Mostrar cada arco solo una vez (evitar duplicados por grafo no dirigido)
+            const displayed = new Set();
+            edges.forEach((edge, index) => {
+                const key = `${edge.origin}-${edge.dest}`;
+                if (!displayed.has(key)) {
+                    displayed.add(key);
+                    const row = table.insertRow();
+                    const cell1 = row.insertCell(0);
+                    const cell2 = row.insertCell(1);
+                    const cell3 = row.insertCell(2);
+                    const cell4 = row.insertCell(3);
+
+                    cell1.textContent = edge.origin;
+                    cell2.textContent = edge.dest;
+                    cell3.textContent = edge.cost;
+                    cell4.innerHTML = `<button onclick="deleteEdge('${edge.origin}', '${edge.dest}')">Eliminar</button>`;
+                }
+            });
+        }
+
+        // Función para eliminar un arco
+        function deleteEdge(origin, dest) {
+            // Eliminar ambos sentidos del arco
+            edges = edges.filter(edge => !(edge.origin === origin && edge.dest === dest) &&
+                !(edge.origin === dest && edge.dest === origin));
+            updateEdgesTable();
+        }
+
+        // Función para construir el grafo
+        function buildGraph(nodes, edges) {
+            const graph = {};
+            nodes.forEach(node => {
+                graph[node] = {};
+            });
+            edges.forEach(edge => {
+                if (graph[edge.origin]) {
+                    graph[edge.origin][edge.dest] = edge.cost;
+                }
+            });
+            return graph;
+        }
+
+        // Función para ejecutar el algoritmo de Dijkstra adaptado
+        function runDijkstra() {
+            if (nodes.length === 0) {
+                alert("Debe definir al menos un nodo.");
+                return;
+            }
+
+            const startNode = document.getElementById('startNodeSelect').value;
+            if (startNode === "") {
+                alert("Debe seleccionar un nodo inicial.");
+                return;
+            }
+
+            if (edges.length === 0) {
+                alert("Debe definir al menos un arco.");
+                return;
+            }
+
+            const graph = buildGraph(nodes, edges);
+            const result = dijkstraDetailedCustom(graph, startNode);
+
+            document.getElementById('output').innerHTML = result;
+        }
+
+        // Implementación del algoritmo de Dijkstra adaptado
+        function dijkstraDetailedCustom(graph, startNode) {
+            let spf = []; // Árbol de Camino Más Corto
+            let spfNodes = new Set(); // Nodos incluidos en el Árbol SPF
+            spfNodes.add(startNode);
+
+            let candidates = []; // Lista de candidatos
+            let costs = {}; // Costos desde la raíz
+            let parents = {}; // Padres de cada nodo
+            let iterations = []; // Detalles de cada iteración
+
+            // Inicializar
+            costs[startNode] = 0;
+
+            // Añadir candidatos iniciales (arcos desde el nodo inicial)
+            for (let dest in graph[startNode]) {
+                candidates.push({
+                    origin: startNode,
+                    dest: dest,
+                    edgeCost: graph[startNode][dest],
+                    totalCost: graph[startNode][dest]
+                });
+                costs[dest] = graph[startNode][dest];
+                parents[dest] = startNode;
+            }
+
+            // Registrar la primera iteración
+            iterations.push({
+                iteration: 1,
+                candidates: [...candidates],
+                costs: { ...costs },
+                spf: [...spf],
+                discarded: [] // No hay candidatos descartados en la primera iteración
+            });
+
+            let iterationNumber = 2;
+
+            while (candidates.length > 0) {
+                // Inicializar candidatos descartados para esta iteración
+                let discardedCandidates = [];
+
+                // Ordenar candidatos por costo total
+                candidates.sort((a, b) => a.totalCost - b.totalCost);
+
+                // Seleccionar el candidato con el menor costo total
+                let selected = candidates.shift(); // Remover el candidato seleccionado
+
+                // Añadir al árbol SPF (usando el costo original de la arista)
+                spf.push({
+                    origin: selected.origin,
+                    dest: selected.dest,
+                    edgeCost: selected.edgeCost
+                });
+
+                // Añadir el nodo destino al conjunto de nodos en SPF
+                spfNodes.add(selected.dest);
+
+                // Remover de los candidatos aquellos cuyo destino ya está en SPF
+                let remainingCandidates = [];
+                candidates.forEach(candidate => {
+                    if (spfNodes.has(candidate.dest)) {
+                        discardedCandidates.push(candidate);
+                    } else {
+                        remainingCandidates.push(candidate);
+                    }
+                });
+                candidates = remainingCandidates;
+
+                // Actualizar los costos y agregar nuevos candidatos desde el destino seleccionado
+                for (let neighbor in graph[selected.dest]) {
+                    let edgeCost = graph[selected.dest][neighbor];
+                    let newCost = costs[selected.dest] + edgeCost;
+
+                    // Si el vecino ya está en SPF, no agregarlo como candidato (elimina arcos como (RC, RA, 2))
+                    if (spfNodes.has(neighbor)) {
+                        // Continuar, no hacer nada si el vecino ya está en el SPF
+                        continue;
+                    }
+
+                    // Verificar si ya existe un candidato para este vecino
+                    let existingCandidateIndex = candidates.findIndex(c => c.dest === neighbor);
+
+                    if (existingCandidateIndex !== -1) {
+                        let existingCandidate = candidates[existingCandidateIndex];
+                        if (newCost < existingCandidate.totalCost) {
+                            // Descartar el candidato existente y reemplazarlo con el nuevo candidato de menor costo
+                            discardedCandidates.push(existingCandidate);
+                            candidates[existingCandidateIndex] = {
+                                origin: selected.dest,
+                                dest: neighbor,
+                                edgeCost: edgeCost,
+                                totalCost: newCost
+                            };
+                            // Actualizar costos y padres
+                            costs[neighbor] = newCost;
+                            parents[neighbor] = selected.dest;
+                        } else {
+                            // Descartar el nuevo candidato si es de mayor costo
+                            discardedCandidates.push({
+                                origin: selected.dest,
+                                dest: neighbor,
+                                edgeCost: edgeCost,
+                                totalCost: newCost
+                            });
+                        }
+                    } else {
+                        // Agregar nuevo candidato si no existe ya
+                        candidates.push({
+                            origin: selected.dest,
+                            dest: neighbor,
+                            edgeCost: edgeCost,
+                            totalCost: newCost
+                        });
+                        // Actualizar costos y padres
+                        costs[neighbor] = newCost;
+                        parents[neighbor] = selected.dest;
+                    }
+                }
+
+                // Registrar la iteración actual
+                iterations.push({
+                    iteration: iterationNumber,
+                    candidates: [...candidates],
+                    costs: { ...costs },
+                    spf: [...spf],
+                    discarded: [...discardedCandidates]
+                });
+
+                if (candidates.length === 0) {
+                    break; // Si no hay más candidatos, detener el ciclo
+                }
+
+                iterationNumber++;
+            }
+
+            // Generar tabla de resultados
+            let output = `<table>
+            <tr>
+                <th>Iteración</th>
+                <th>Candidato</th>
+                <th>Costo desde la raíz</th>
+                <th>Árbol SPF</th>
+            </tr>`;
+
+            iterations.forEach(iter => {
+                // Formatear candidatos (activos y descartados)
+                let activosStr = iter.candidates.map(c => `(${c.origin}, ${c.dest}, ${c.edgeCost})`).join('<br>');
+                let descartadosStr = iter.discarded.map(c => `<span class="descartado">(${c.origin}, ${c.dest}, ${c.edgeCost})</span>`).join('<br>');
+                let allCandidates = activosStr;
+                if (descartadosStr) {
+                    allCandidates += '<br>' + descartadosStr;
+                }
+
+                // Formatear costos
+                let costosStr = "";
+                for (let node in iter.costs) {
+                    costosStr += `${node}: ${iter.costs[node] === Infinity ? '∞' : iter.costs[node]}<br>`;
+                }
+                // Formatear árbol SPF
+                let spfStr = iter.spf.map(c => `(${c.origin}, ${c.dest}, ${c.edgeCost})`).join('<br>');
+
+                output += `<tr>
+                <td>Iteración ${iter.iteration}</td>
+                <td>${allCandidates}</td>
+                <td>${costosStr}</td>
+                <td>${spfStr}</td>
+            </tr>`;
+            });
+
+            output += `</table>`;
+
+            // Agregar resultados finales
+            output += `<h3>Resultado Final:</h3><ul>`;
+            let finalSpf = spf;
+            finalSpf.forEach(edge => {
+                output += `<li>(${edge.origin} -> ${edge.dest}, Costo: ${edge.edgeCost})</li>`;
+            });
+            output += `</ul>`;
+
+            return output;
+        }
+    </script>
+
+</body>
+
+</html>
