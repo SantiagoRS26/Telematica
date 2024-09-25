@@ -368,7 +368,6 @@
             updateEdgesTable();
 
             // Limpiar los campos de entrada
-            originInput.value = "";
             destInput.value = "";
             costInput.value = "";
         }
@@ -467,24 +466,30 @@
             spfNodes.add(startNode);
 
             let candidates = []; // Lista de candidatos
-            let costs = {}; // Costos desde la raíz
+            let costs = {}; // Costos desde la raíz para candidatos actuales
+            let finalCosts = {}; // Costos desde la raíz para nodos en el Árbol SPF
             let parents = {}; // Padres de cada nodo
             let iterations = []; // Detalles de cada iteración
 
             // Inicializar
-            costs[startNode] = 0;
+            finalCosts[startNode] = 0; // El costo desde la raíz al nodo inicial es 0
 
             // Añadir candidatos iniciales (arcos desde el nodo inicial)
             for (let dest in graph[startNode]) {
+                let edgeCost = graph[startNode][dest];
+                let totalCost = finalCosts[startNode] + edgeCost; // Costo acumulado desde la raíz
                 candidates.push({
                     origin: startNode,
                     dest: dest,
-                    edgeCost: graph[startNode][dest],
-                    totalCost: graph[startNode][dest]
+                    edgeCost: edgeCost,
+                    totalCost: totalCost
                 });
-                costs[dest] = graph[startNode][dest];
+                costs[dest] = totalCost;
                 parents[dest] = startNode;
             }
+
+            // Eliminar el costo del nodo inicial de 'costs' si está presente
+            delete costs[startNode];
 
             // Registrar la primera iteración
             iterations.push({
@@ -492,14 +497,16 @@
                 candidates: [...candidates],
                 costs: { ...costs },
                 spf: [...spf],
-                discarded: [] // No hay candidatos descartados en la primera iteración
+                discarded: [], // No hay candidatos descartados en la primera iteración
+                discardedCosts: {} // No hay costos descartados en la primera iteración
             });
 
             let iterationNumber = 2;
 
             while (candidates.length > 0) {
-                // Inicializar candidatos descartados para esta iteración
+                // Inicializar candidatos descartados y costos descartados para esta iteración
                 let discardedCandidates = [];
+                let discardedCosts = {};
 
                 // Ordenar candidatos por costo total
                 candidates.sort((a, b) => a.totalCost - b.totalCost);
@@ -517,11 +524,18 @@
                 // Añadir el nodo destino al conjunto de nodos en SPF
                 spfNodes.add(selected.dest);
 
+                // Mover el costo del nodo seleccionado a finalCosts
+                finalCosts[selected.dest] = selected.totalCost;
+                delete costs[selected.dest];
+
                 // Remover de los candidatos aquellos cuyo destino ya está en SPF
                 let remainingCandidates = [];
                 candidates.forEach(candidate => {
                     if (spfNodes.has(candidate.dest)) {
                         discardedCandidates.push(candidate);
+                        // Añadir el costo al diccionario de costos descartados de esta iteración
+                        discardedCosts[candidate.dest] = candidate.totalCost;
+                        delete costs[candidate.dest];
                     } else {
                         remainingCandidates.push(candidate);
                     }
@@ -531,11 +545,10 @@
                 // Actualizar los costos y agregar nuevos candidatos desde el destino seleccionado
                 for (let neighbor in graph[selected.dest]) {
                     let edgeCost = graph[selected.dest][neighbor];
-                    let newCost = costs[selected.dest] + edgeCost;
+                    let newCost = finalCosts[selected.dest] + edgeCost; // Usar el costo acumulado desde la raíz
 
-                    // Si el vecino ya está en SPF, no agregarlo como candidato (elimina arcos como (RC, RA, 2))
+                    // Si el vecino ya está en SPF, no agregarlo como candidato
                     if (spfNodes.has(neighbor)) {
-                        // Continuar, no hacer nada si el vecino ya está en el SPF
                         continue;
                     }
 
@@ -547,6 +560,8 @@
                         if (newCost < existingCandidate.totalCost) {
                             // Descartar el candidato existente y reemplazarlo con el nuevo candidato de menor costo
                             discardedCandidates.push(existingCandidate);
+                            // Añadir el costo al diccionario de costos descartados de esta iteración
+                            discardedCosts[existingCandidate.dest] = existingCandidate.totalCost;
                             candidates[existingCandidateIndex] = {
                                 origin: selected.dest,
                                 dest: neighbor,
@@ -564,6 +579,8 @@
                                 edgeCost: edgeCost,
                                 totalCost: newCost
                             });
+                            // Añadir el costo al diccionario de costos descartados de esta iteración
+                            discardedCosts[neighbor] = newCost;
                         }
                     } else {
                         // Agregar nuevo candidato si no existe ya
@@ -585,7 +602,8 @@
                     candidates: [...candidates],
                     costs: { ...costs },
                     spf: [...spf],
-                    discarded: [...discardedCandidates]
+                    discarded: [...discardedCandidates],
+                    discardedCosts: { ...discardedCosts } // Solo los costos descartados en esta iteración
                 });
 
                 if (candidates.length === 0) {
@@ -599,8 +617,8 @@
             let output = `<table>
             <tr>
                 <th>Iteración</th>
-                <th>Candidato</th>
-                <th>Costo desde la raíz</th>
+                <th>Candidatos</th>
+                <th>Costos desde la raíz</th>
                 <th>Árbol SPF</th>
             </tr>`;
 
@@ -613,11 +631,21 @@
                     allCandidates += '<br>' + descartadosStr;
                 }
 
-                // Formatear costos
+                // Formatear costos actuales (solo de candidatos actuales, excluyendo el nodo inicial)
                 let costosStr = "";
                 for (let node in iter.costs) {
-                    costosStr += `${node}: ${iter.costs[node] === Infinity ? '∞' : iter.costs[node]}<br>`;
+                    if (node !== startNode) {
+                        costosStr += `${node}: ${iter.costs[node]}<br>`;
+                    }
                 }
+
+                // Mostrar costos de candidatos descartados en rojo (solo los de esta iteración)
+                for (let node in iter.discardedCosts) {
+                    if (node !== startNode) {
+                        costosStr += `<span class="descartado">${node}: ${iter.discardedCosts[node]}</span><br>`;
+                    }
+                }
+
                 // Formatear árbol SPF
                 let spfStr = iter.spf.map(c => `(${c.origin}, ${c.dest}, ${c.edgeCost})`).join('<br>');
 
