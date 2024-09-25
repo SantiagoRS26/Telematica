@@ -2,12 +2,13 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Generador de Subredes IPv6</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            margin: 20px;
             background-color: #f4f4f4;
+            box-sizing: border-box;
         }
         h1 {
             text-align: center;
@@ -59,9 +60,129 @@
             color: red;
             margin-top: 10px;
         }
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #333;
+            padding: 10px 20px;
+            color: #fff;
+            position: relative;
+            z-index: 1000;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .nav-links {
+            list-style: none;
+            display: flex;
+            margin: 0;
+        }
+
+        .nav-links li {
+            margin-left: 20px;
+        }
+
+        .nav-links a {
+            color: #fff;
+            text-decoration: none;
+            font-size: 18px;
+            padding: 8px 12px;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .nav-links a:hover {
+            background-color: #575757;
+        }
+
+        /* Estilos para el menú tipo hamburguesa */
+        .hamburger {
+            display: none;
+            flex-direction: column;
+            cursor: pointer;
+        }
+
+        .hamburger span {
+            width: 25px;
+            height: 3px;
+            background-color: #fff;
+            margin: 3px;
+        }
+
+        /* Estilos responsivos */
+        @media (max-width: 768px) {
+            .nav-links {
+                position: absolute;
+                top: 60px;
+                left: 0;
+                width: 100%;
+                background-color: #333;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                height: 0;
+                overflow: hidden;
+                transition: height 0.3s ease-in-out;
+            }
+
+            .nav-links li {
+                margin: 15px 0;
+            }
+
+            .nav-links a {
+                font-size: 20px;
+            }
+
+            .hamburger {
+                display: flex;
+            }
+
+            /* Mostrar el menú cuando se haga clic en la hamburguesa */
+            #menu-toggle:checked + .hamburger + .nav-links {
+                height: 200px;
+            }
+        }
+        
+        /* Ajuste para el contenido que quede debajo de la navbar */
+        .container {
+            margin-top: 80px; /* Para que no se sobreponga la navbar */
+        }
+
     </style>
 </head>
 <body>
+    <nav class="navbar">
+        <div class="logo">MiWeb</div>
+        <input type="checkbox" id="menu-toggle" hidden>
+        <label for="menu-toggle" class="hamburger">
+            <span></span>
+            <span></span>
+            <span></span>
+        </label>
+        <ul class="nav-links">
+            <li><a href="/">Inicio</a></li>
+            <li><a href="ipv6.html">IPv6</a></li>
+            <li><a href="subipv6.html">SubIPv6</a></li>
+        </ul>
+    </nav>
+
+    <script>
+        // JavaScript opcional para cerrar el menú cuando se hace clic en un enlace en dispositivos móviles
+        const menuToggle = document.getElementById('menu-toggle');
+        const navLinks = document.querySelectorAll('.nav-links a');
+
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                menuToggle.checked = false;
+            });
+        });
+    </script>
+
     <div class="container">
         <h1>Generador de Subredes IPv6</h1>
         <form id="ipv6Form">
@@ -94,7 +215,6 @@
             <pre id="output"></pre>
         </div>
     </div>
-
     <script>
         // Función para expandir una dirección IPv6 completa
         function expandIPv6(address) {
